@@ -1,0 +1,6 @@
+{
+  "name": "Equinova Secure Auth & Data Vault",
+  "description": "Secure user registration, authentication, and protected data vault powered by Firebase Auth and Firestore.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

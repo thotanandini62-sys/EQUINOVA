@@ -1,0 +1,142 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "User profile document containing account metadata and preferences",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "description": "Firebase Auth unique user ID",
+          "maxLength": 128
+        },
+        "email": {
+          "type": "string",
+          "description": "User email address",
+          "maxLength": 256
+        },
+        "displayName": {
+          "type": "string",
+          "description": "User display name",
+          "maxLength": 100
+        },
+        "photoURL": {
+          "type": "string",
+          "description": "User avatar image URL",
+          "maxLength": 1024
+        },
+        "role": {
+          "type": "string",
+          "enum": ["user", "admin"],
+          "description": "User role"
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "ISO timestamp of account registration"
+        },
+        "lastLoginAt": {
+          "type": "string",
+          "description": "ISO timestamp of latest authentication"
+        }
+      },
+      "required": ["uid", "email"]
+    },
+    "VaultItem": {
+      "title": "VaultItem",
+      "description": "A protected confidential record stored in the user's secure vault",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the vault item",
+          "maxLength": 128
+        },
+        "userId": {
+          "type": "string",
+          "description": "Owner user ID",
+          "maxLength": 128
+        },
+        "title": {
+          "type": "string",
+          "description": "Title or label for the protected item",
+          "maxLength": 120
+        },
+        "category": {
+          "type": "string",
+          "enum": ["credential", "note", "financial", "confidential"],
+          "description": "Category of the sensitive item"
+        },
+        "sensitiveContent": {
+          "type": "string",
+          "description": "Protected secret content or notes",
+          "maxLength": 4096
+        },
+        "notes": {
+          "type": "string",
+          "description": "Additional non-secret descriptive notes",
+          "maxLength": 1024
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "ISO timestamp when created"
+        },
+        "updatedAt": {
+          "type": "string",
+          "description": "ISO timestamp when updated"
+        }
+      },
+      "required": ["id", "userId", "title", "category", "sensitiveContent"]
+    },
+    "SecurityLog": {
+      "title": "SecurityLog",
+      "description": "Security audit log event for authentication and vault interactions",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Log identifier",
+          "maxLength": 128
+        },
+        "userId": {
+          "type": "string",
+          "description": "User ID associated with the security event",
+          "maxLength": 128
+        },
+        "event": {
+          "type": "string",
+          "description": "Type of event (login, register, vault_write, password_reset)",
+          "maxLength": 80
+        },
+        "status": {
+          "type": "string",
+          "enum": ["success", "warning", "info"],
+          "description": "Status level of event"
+        },
+        "details": {
+          "type": "string",
+          "description": "Event detail summary",
+          "maxLength": 512
+        },
+        "timestamp": {
+          "type": "string",
+          "description": "ISO timestamp of event occurrence"
+        }
+      },
+      "required": ["id", "userId", "event", "timestamp"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/UserProfile" },
+      "description": "User profile with private metadata and role attributes"
+    },
+    "/users/{userId}/vault/{vaultId}": {
+      "schema": { "$ref": "#/entities/VaultItem" },
+      "description": "Protected confidential data vault records owned strictly by the authenticated user"
+    },
+    "/users/{userId}/logs/{logId}": {
+      "schema": { "$ref": "#/entities/SecurityLog" },
+      "description": "Security audit trails for account activity"
+    }
+  }
+}

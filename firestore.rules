@@ -1,0 +1,95 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Default Deny Catch-All
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() > 0 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isValidUserProfile(data, userId) {
+      return data.keys().hasAll(['uid', 'email'])
+        && data.uid is string && data.uid == userId
+        && data.email is string && data.email.size() <= 256
+        && (!('displayName' in data) || (data.displayName is string && data.displayName.size() <= 100))
+        && (!('photoURL' in data) || (data.photoURL is string && data.photoURL.size() <= 1024))
+        && (!('role' in data) || (data.role in ['user', 'admin']))
+        && (!('createdAt' in data) || (data.createdAt is string && data.createdAt.size() <= 64))
+        && (!('lastLoginAt' in data) || (data.lastLoginAt is string && data.lastLoginAt.size() <= 64));
+    }
+
+    function isValidVaultItem(data, userId) {
+      return data.keys().hasAll(['id', 'userId', 'title', 'category', 'sensitiveContent'])
+        && data.id is string && data.id.size() <= 128
+        && data.userId is string && data.userId == userId
+        && data.title is string && data.title.size() > 0 && data.title.size() <= 120
+        && data.category is string && (data.category in ['credential', 'note', 'financial', 'confidential'])
+        && data.sensitiveContent is string && data.sensitiveContent.size() <= 4096
+        && (!('notes' in data) || (data.notes is string && data.notes.size() <= 1024))
+        && (!('createdAt' in data) || (data.createdAt is string && data.createdAt.size() <= 64))
+        && (!('updatedAt' in data) || (data.updatedAt is string && data.updatedAt.size() <= 64));
+    }
+
+    function isValidSecurityLog(data, userId) {
+      return data.keys().hasAll(['id', 'userId', 'event', 'timestamp'])
+        && data.id is string && data.id.size() <= 128
+        && data.userId is string && data.userId == userId
+        && data.event is string && data.event.size() <= 80
+        && (!('status' in data) || (data.status in ['success', 'warning', 'info']))
+        && (!('details' in data) || (data.details is string && data.details.size() <= 512))
+        && data.timestamp is string && data.timestamp.size() <= 64;
+    }
+
+    // User profile documents (isolated to authenticated owner)
+    match /users/{userId} {
+      allow get: if isOwner(userId);
+      allow create: if isOwner(userId) && isValidUserProfile(incoming(), userId);
+      allow update: if isOwner(userId) && isValidUserProfile(incoming(), userId)
+                    && incoming().uid == existing().uid;
+      allow delete: if false;
+
+      // Protected User Data Vault items
+      match /vault/{vaultId} {
+        allow get, list: if isOwner(userId);
+        allow create: if isOwner(userId)
+                      && isValidId(vaultId)
+                      && isValidVaultItem(incoming(), userId);
+        allow update: if isOwner(userId)
+                      && isValidId(vaultId)
+                      && isValidVaultItem(incoming(), userId)
+                      && incoming().userId == existing().userId
+                      && incoming().id == existing().id;
+        allow delete: if isOwner(userId) && isValidId(vaultId);
+      }
+
+      // Security Audit Activity Logs
+      match /logs/{logId} {
+        allow get, list: if isOwner(userId);
+        allow create: if isOwner(userId)
+                      && isValidId(logId)
+                      && isValidSecurityLog(incoming(), userId);
+        allow update, delete: if false;
+      }
+    }
+  }
+}
